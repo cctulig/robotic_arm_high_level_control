@@ -54,9 +54,10 @@ try
     % The following code generates a sinusoidal trajectory to be
     % executed on joint 1 of the arm and iteratively sends the list of
     % setpoints to the Nucleo firmware.
-    viaPts = [0, -400, 400, -400, 400, 0];
-    joint2 = [0, 100, 200, 300, 200, 100];
-    joint3 = [0, 100, 200, 300, 200, 100];
+    %viaPts = [0, -400, 400, -400, 400, 0];
+    viaPts = [0, 693];
+    joint2 = [0, 630, 200, 300, 200, 100];
+    joint3 = [0, -368, 200, 300, 200, 100];
     
     statusMatrix = zeros(6, 6);
     
@@ -120,7 +121,7 @@ try
             
          
             
-            if statusMatrix(row,1) < k + 10 && statusMatrix(row,1) > k - 10
+            if statusMatrix(row,1) < k + 5 && statusMatrix(row,1) > k - 5
                 notReachedSetpoint = 0;
                 index = index + 1;
             end
@@ -136,6 +137,9 @@ try
     
     csvwrite('status.csv',statusMatrix);
     plot([1:size(statusMatrix(:,1))], statusMatrix(:,1), '-o')
+    hold on
+    refline([0 400])
+    hold off
     
     %myButtonTest();
     
