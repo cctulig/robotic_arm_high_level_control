@@ -41,6 +41,9 @@ CALIBRATION_ID = 04;
 % Create a PacketProcessor object to send data to the nucleo firmware
 pp = PacketProcessor(myHIDSimplePacketComs);
 disp('START!')
+
+
+tic
 try
     
     
@@ -55,23 +58,27 @@ try
     % executed on joint 1 of the arm and iteratively sends the list of
     % setpoints to the Nucleo firmware.
     %viaPts = [0, -400, 400, -400, 400, 0];
-    viaPts = [0, 693];
-    joint2 = [0, 630, 200, 300, 200, 100];
-    joint3 = [0, -368, 200, 300, 200, 100];
+    viaPts = [0, 320, -330, 180, 400];
+    joint2 = [0, 250, 200, 630, 630];
+    joint3 = [0, -50, 380, 120, -360];
     
-    statusMatrix = zeros(6, 6);
+    statusMatrix = zeros(6, 7);
+    figure(1)
+    plot([1:size(statusMatrix(:,1))], statusMatrix(:,1), '-o')
+    hold on
     
     index = 1;
     row = 1;
     notReachedSetpoint = 1;
     
     for k = viaPts
-         notReachedSetpoint = 1;
+        pause(1);
+        notReachedSetpoint = 1;
         packet = zeros(15, 1, 'single');
         empty =  zeros(15, 1, 'single');
         packet(1) = k;
-        packet(4) = joint2(index);
-        packet(7) = joint3(index);
+       % packet(4) = joint2(index);
+       % packet(7) = joint3(index);
         
         % Send packet to the server and get the response
         %pp.write sends a 15 float packet to the micro controller
@@ -86,17 +93,14 @@ try
         %pp.read reads a returned 15 float backet from the nucleo.
         returnPacket = pp.read(SERV_ID);
         while notReachedSetpoint
-            tic
             
-            
-           
             pp.write(STATUS_ID, empty);
             
             pause(0.003); % Minimum amount of time required between write and read
             
             %pp.read reads a returned 15 float backet from the nucleo.
             statusPacket = pp.read(STATUS_ID);
-            toc
+            
             
             if DEBUG
                 disp('Sent Packet:');
@@ -106,6 +110,8 @@ try
                 disp('Status Packet:');
                 disp(statusPacket);
             end
+            
+            statusMatrix(row, 7) = toc;
             
             for x = 0:3
                 packet((x*3)+1)=0.1;
@@ -119,14 +125,14 @@ try
                 
             end
             
-         
+             plot([1:size(statusMatrix(:,1))], statusMatrix(:,1), '-o')
             
             if statusMatrix(row,1) < k + 5 && statusMatrix(row,1) > k - 5
                 notReachedSetpoint = 0;
                 index = index + 1;
             end
             
-            toc
+            
             %pause(1) %timeit(returnPacket) !FIXME why is this needed?
             
             
@@ -135,13 +141,62 @@ try
         end
     end
     
+   tic
+    while toc < 2
+        pp.write(STATUS_ID, empty);
+        
+        pause(0.003); % Minimum amount of time required between write and read
+        
+        %pp.read reads a returned 15 float backet from the nucleo.
+        statusPacket = pp.read(STATUS_ID);
+        for x = 0:2
+            
+            statusMatrix(row,1+2*x)= statusPacket((x*3)+1);
+            statusMatrix(row,2+2*x) = statusPacket((x*3)+2);
+            
+            
+        end
+        row = row +1;
+    end
+    
+    
     csvwrite('status.csv',statusMatrix);
-    plot([1:size(statusMatrix(:,1))], statusMatrix(:,1), '-o')
-    hold on
-    refline([0 400])
+    
+   
+    xlabel('Time'), ylabel('Encoders (tics)');
+    %xlim([0 5]), ylim([0 2]);
+    title('Joint 1');
+    set(gca, 'fontsize', 16);
+    
+    %refline([0 250])
+    legend({'Actual', 'Setpoint'});
     hold off
     
-    %myButtonTest();
+    figure(2)
+    plot([1:size(statusMatrix(:,1))], statusMatrix(:,3), '-o')
+    hold on
+    xlabel('Time'), ylabel('Encoders (tics)');
+    %xlim([0 5]), ylim([0 2]);
+    title('Joint 2');
+    set(gca, 'fontsize', 16);
+    
+    %refline([0 250])
+    legend({'Actual', 'Setpoint'});
+    hold off
+    
+    figure(3)
+    plot([1:size(statusMatrix(:,1))], statusMatrix(:,5), '-o')
+    hold on
+    xlabel('Time'), ylabel('Encoders (tics)');
+    %xlim([0 5]), ylim([0 2]);
+    title('Joint 3');
+    set(gca, 'fontsize', 16);
+    
+    %refline([0 -50])
+    legend({'Actual', 'Setpoint'});
+    hold off
+    
+   
     
 catch exception
     getReport(exception)
@@ -153,14 +208,3 @@ end
 pp.shutdown()
 
 toc
-
-function myButtonTest()
-PushButton = uicontrol(gcf,'Style', 'push', 'String', 'Calibrate','Position', [250 250 90 30],'CallBack', @PushB);
-    function PushB(source,event)
-        display('I pushed the pushbutton')
-        pp.write(CALIBRATION_ID, empty);
-        pause(0.003); % Minimum amount of time required between write and read
-        %pp.read reads a returned 15 float backet from the nucleo.
-        emptyPacket = pp.read(CALIBRATION_ID);
-    end
-end
