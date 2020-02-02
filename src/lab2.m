@@ -42,25 +42,40 @@ CALIBRATION_ID = 04;
 pp = PacketProcessor(myHIDSimplePacketComs);
 disp('START!')
 
-n=500;
 statusMatrix = zeros(6, 7);
-row = 1;
 empty = zeros(15, 1, 'single');
-positionMatrix=zeros(n, 7);
+positionMatrix=zeros(3, 7);
 i=1;
 
- xPos = [55, 41, 650];
- zPos = [-290, 300, -350];
+joint2 = [55, 41, 650];
+joint3 = [-290, 300, -350];
+packet = zeros(15, 1, 'single');
+index = 1;
+notReachedSetpoint = 1;
+
 
 try
-    
-    
-    DEBUG   = true;          % enables/disables debug prints
     tic
-    
-    while i < n
-           
-          %Write and reading from the Status server to get encoder positions and motor velocities
+    for k = 1:1
+        DEBUG   = true;          % enables/disables debug prints
+        
+        
+        packet(4) = joint2(index); %Writes setpoint to joint 2
+        packet(7) = joint3(index); %Writes setpoint to joint 3
+        
+        % Send packet to the server and get the response
+        %pp.write sends a 15 float packet to the micro controller
+        pp.write(SERV_ID, packet);
+        
+        pause(0.003); % Minimum amount of time required between write and read
+        
+        %pp.read reads a returned 15 float backet from the nucleo.
+        returnPacket = pp.read(SERV_ID);
+        notReachedSetpoint = 1;
+        targetTime = toc + 2;
+        while notReachedSetpoint
+            
+            %Write and reading from the Status server to get encoder positions and motor velocities
             pp.write(STATUS_ID, empty);
             
             pause(0.003); % Minimum amount of time required between write and read
@@ -81,38 +96,55 @@ try
             positionMatrix(i,6) = position(3);
             positionMatrix(i,7) = toc;
             i=i+1;
+            
+             
+            %Once setpoint is roughly reached, move on to the next setpoint
+            if targetTime < toc
+                notReachedSetpoint = 0;
+                index = index + 1;
+            end
+        end
     end
+    
+    disp('i: ')
+    disp(i)
     
     csvwrite('positionMatrix.csv',positionMatrix);
     
     figure(2)
-    plot(positionMatrix(:,7),positionMatrix(:,1),'r')
+    plot(positionMatrix(:,7),positionMatrix(:,1),'r', 'LineWidth', 2)
     hold on
-    plot(positionMatrix(:,7),positionMatrix(:,2),'b')
-    plot(positionMatrix(:,7),positionMatrix(:,3),'g')
+    plot(positionMatrix(:,7),positionMatrix(:,2),'b', 'LineWidth', 2)
+    plot(positionMatrix(:,7),positionMatrix(:,3),'g', 'LineWidth', 2)
     title('Joint Angles');
     set(gca, 'fontsize', 16);
     legend({'Theta1', 'Theta2', 'Theta3'});
-
+    
+    
     hold off
     
     figure(3)
-    plot(positionMatrix(:,7),positionMatrix(:,4),'r')
+    plot(positionMatrix(:,7),positionMatrix(:,4),'r', 'LineWidth', 2)
     hold on
-    plot(positionMatrix(:,7),positionMatrix(:,6),'b')
+    plot(positionMatrix(:,7),positionMatrix(:,6),'b', 'LineWidth', 2)
     title('End Effector');
     set(gca, 'fontsize', 16);
     legend({'X Pos', 'Z Pos'});
     hold off
     
     figure(4)
-    plot(positionMatrix(1:end-1,7),rdivide(diff(positionMatrix(:,4)'),diff(positionMatrix(:,7)')) ,'r')
+    plot(positionMatrix(1:end-1,7),rdivide(diff(positionMatrix(:,4)'),diff(positionMatrix(:,7)')) ,'r', 'LineWidth', 2)
     hold on
-    plot(positionMatrix(:,7),rdivide(diff(positionMatrix(:,6)'),diff(positionMatrix(:,7)')),'b')
+    plot(positionMatrix(1:end-1,7),rdivide(diff(positionMatrix(:,6)'),diff(positionMatrix(:,7)')),'b', 'LineWidth', 2)
     title('Velocity');
     set(gca, 'fontsize', 16);
     legend({'X Vel', 'Z Vel'});
     hold off
+    
+    disp('Traj:')
+    traj1 = cubicTrajectory(0,angle(1),0,1,0,0)
+    traj2 = cubicTrajectory(0,angle(2),0,1,0,0)
+    traj3 = cubicTrajectory(0,angle(3),0,1,0,0)
     
 catch exception
     getReport(exception)
@@ -128,19 +160,19 @@ function [] = stickModel(q)
 %   Detailed explanation goes here
 
 link1 = [cos(q(1)), 0, sin(q(1)), 0;
-            sin(q(1)), 0, -cos(q(1)), 0;
-            0, 1, 0, 135;
-            0, 0, 0, 1;];
+    sin(q(1)), 0, -cos(q(1)), 0;
+    0, 1, 0, 135;
+    0, 0, 0, 1;];
 link2 = [cos(q(2)), -sin(q(2)), 0, 175*cos(q(2));
-        sin(q(2)) cos(q(2)), 0, 175*sin(q(2));
-        0, 0, 1, 0;
-        0, 0, 0, 1;];
+    sin(q(2)) cos(q(2)), 0, 175*sin(q(2));
+    0, 0, 1, 0;
+    0, 0, 0, 1;];
 link3 = [cos(q(3)-pi/2), -sin(q(3)-pi/2), 0, 169.28*cos(q(3)-pi/2);
-        sin(q(3)-pi/2), cos(q(3)-pi/2), 0, 169.28*sin(q(3)-pi/2);
-        0, 0, 1, 0;
-        0, 0, 0, 1;];
+    sin(q(3)-pi/2), cos(q(3)-pi/2), 0, 169.28*sin(q(3)-pi/2);
+    0, 0, 1, 0;
+    0, 0, 0, 1;];
 zero = [0,0,0];
-    v1 = [0,0,135];
+v1 = [0,0,135];
 v2 = link1*link2;
 v2 = v2(1:3,4)';
 v3 = link1*link2*link3;
@@ -153,4 +185,12 @@ hold off
 
 end
 
+function [sol] = cubicTrajectory(qi,qf,ti,tf,vi,vf)
+syms a0 a1 a2 a3;
 
+eqns = [a0 + a1*ti + a2*ti^2 + a3*ti^3 == qi,
+    a1 + 2*a2*ti + 3*a3*ti^2 == vi,
+    a0 + a1*tf + a2*tf^2 + a3*tf^3 == qf,
+    a1 + 2*a2*tf + 3*a3*tf^2 == vf];
+sol = fsolve(eqns,[a0 a1 a2 a3]);
+end
