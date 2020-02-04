@@ -34,55 +34,67 @@ myHIDSimplePacketComs=HIDfactory.get();
 myHIDSimplePacketComs.setPid(pid);
 myHIDSimplePacketComs.setVid(vid);
 myHIDSimplePacketComs.connect();
-SERV_ID = 01;            % we will be talking to server ID 01 on
-% the Nucleo
-STATUS_ID = 03;
-CALIBRATION_ID = 04;
+
+SERV_ID = 01;          % PidServer ID on Nucleo
+STATUS_ID = 03;        % StatusServer ID on Nucleo
+CALIBRATION_ID = 04;   % CallibrationServer ID on Nucleo
+
 % Create a PacketProcessor object to send data to the nucleo firmware
 pp = PacketProcessor(myHIDSimplePacketComs);
+
 disp('START!')
 
+% Initialize Matrices to zero
 statusMatrix = zeros(6, 7);
 empty = zeros(15, 1, 'single');
 positionMatrix=zeros(3, 7);
-i=1;
+packet = zeros(15, 1, 'single');
 
-
+% Calculate cubic coefficients for 4 trajectories for joint 2
 traj2A = cubicTrajectory(0,rad(55),0,1,0,0);
 traj2B = cubicTrajectory(rad(55),rad(41),1,2,0,0);
 traj2C= cubicTrajectory(rad(41),rad(650),2,3,0,0);
 traj2D= cubicTrajectory(rad(650),rad(55),3,4,0,0);
 
+% Calculate cubic coefficients for 4 trajectories for joint 3
 traj3A = cubicTrajectory(0,rad(-290),0,1,0,0);
 traj3B = cubicTrajectory(rad(-290),rad(300),1,2,0,0);
 traj3C = cubicTrajectory(rad(300),rad(-350),2,3,0,0);
 traj3D = cubicTrajectory(rad(-350),rad(-290),3,4,0,0);
 
+% Interpolate 10 setpoints between each trajectory for joint 2
 [interp2A, time2A] = interpolate(traj2A, 0,1);
 [interp2B, time2B] = interpolate(traj2B, 1,2);
 [interp2C, time2C] = interpolate(traj2C, 2,3);
 [interp2D, time2D] = interpolate(traj2D, 3,4);
 
+% Interpolate 10 setpoints between each trajectory for joint 3
 [interp3A, ] = interpolate(traj3A, 0,1);
 [interp3B, ] = interpolate(traj3B, 1,2);
 [interp3C, ] = interpolate(traj3C, 2,3);
 [interp3D, ] = interpolate(traj3D, 3,4);
 
+% Combine all 4 trajectories
 trajJoint2 = [interp2A interp2B interp2C interp2D];
 trajJoint3 = [interp3A interp3B interp3C interp3D];
 time = [time2A time2B time2C time2D];
 
-joint2 = [55, 41, 650, 55];
-joint3 = [-290, 300, -350, -290];
-packet = zeros(15, 1, 'single');
-index = 1;
-notReachedSetpoint = 1;
+% Assign joint trajectories to queue of setpoints to send to Nucleo
+joint2 = trajJoint2; %[55, 41, 650, 55];
+joint3 = trajJoint3; %[-290, 300, -350, -290];
 
+% Used for indexing through posiition matrix
+index = 1;
+i=1;
+
+% We wait to send a new setpoint until the previous has been reached
+notReachedSetpoint = 1;
 
 
 try
     tic
-    for k = 1:4
+    % Loop through all 40 (10 per traj.) setpoints
+    for k = 1:40
         
         DEBUG   = true;          % enables/disables debug prints
         
@@ -98,6 +110,7 @@ try
         
         %pp.read reads a returned 15 float backet from the nucleo.
         returnPacket = pp.read(SERV_ID);
+        
         notReachedSetpoint = 1;
         targetTime = toc + 1;
         while notReachedSetpoint
@@ -110,11 +123,16 @@ try
             %pp.read reads a returned 15 float backet from the nucleo.
             statusPacket = pp.read(STATUS_ID);
             
+            % Convert encoders to radians, then sends those angles to be simulated as a stick model
             angle = [(statusPacket(1)*2*pi/4096), (statusPacket(4)*2*pi/4096), (statusPacket(7)*2*pi/4096)];
             disp(angle)
             stickModel(angle)
+            
+            % Get the positions of each joint through forward kinematics
             position = fwkin3001(angle(1),angle(2),angle(3));
             matrix = [angle(1),angle(2),angle(3),position(1),position(2),position(3)];
+            
+            % Record values to the position matrix
             positionMatrix(i,1)= angle(1);
             positionMatrix(i,2)= angle(2);
             positionMatrix(i,3) = angle(3);
@@ -131,6 +149,7 @@ try
 %                 end
 %             end
 
+            % Once time interval is reached (0.1s to match interpolation), move on to the next setpoint
             if targetTime < toc
                 notReachedSetpoint = 0;
             end
@@ -142,8 +161,10 @@ try
     disp('i: ')
     disp(i)
     
+    % Create CSV file of all data recieved from Status Server
     csvwrite('positionMatrix.csv',positionMatrix);
     
+    % Graph + format for Joint Angle vs time
     figure(2)
     plot(positionMatrix(:,7),positionMatrix(:,1),'r', 'LineWidth', 2)
     grid on
@@ -156,6 +177,7 @@ try
     xlabel('Time[s]'), ylabel('Angle[rad]');
     hold off
     
+    % Graph + format for End Effector Position vs Time
     figure(3)
     plot(positionMatrix(:,7),positionMatrix(:,4),'r', 'LineWidth', 2)
     grid on
@@ -167,6 +189,7 @@ try
     xlabel('Time[s]'), ylabel('Position[mm]');
     hold off
     
+    % Graph + format for Joint Velocity vs Time
     figure(4)
     plot(positionMatrix(1:end-1,7),rdivide(diff(positionMatrix(:,1)'),diff(positionMatrix(:,7)')) ,'r', 'LineWidth', 2)
     grid on
@@ -179,6 +202,7 @@ try
     xlabel('Time[s]'), ylabel('Velocity[rad/s]');
     hold off
     
+    % Graph + format for X-Position vs. Z-Position (path of end effector)
     figure(5)
     plot(positionMatrix(:,4),positionMatrix(:,6),'r', 'LineWidth', 2)
     grid on
@@ -188,7 +212,7 @@ try
     xlabel('X Position[mm]'), ylabel('Z Position[mm]');
     hold off
     
-    
+    % Graph + format for Planned Trajectory
     figure(6)
     plot(time,zeros(1,40),'r', 'LineWidth', 2)
     grid on
@@ -211,9 +235,11 @@ end
 pp.shutdown()
 
 function [] = stickModel(q)
-%UNTITLED Summa,ry of this function goes here
-%   Detailed explanation goes here
+%stickModel simulates stick model of arm
+%   Uses variable joint angles and define joint lengths to 
+%   calculate and plot the three joints of the Robotic Arm in MATLAB
 
+% Matrix of each joint transformation
 link1 = [cos(q(1)), 0, sin(q(1)), 0;
     sin(q(1)), 0, -cos(q(1)), 0;
     0, 1, 0, 135;
@@ -226,12 +252,16 @@ link3 = [cos(q(3)-pi/2), -sin(q(3)-pi/2), 0, 169.28*cos(q(3)-pi/2);
     sin(q(3)-pi/2), cos(q(3)-pi/2), 0, 169.28*sin(q(3)-pi/2);
     0, 0, 1, 0;
     0, 0, 0, 1;];
+    
+% Vectors for each joint
 zero = [0,0,0];
 v1 = [0,0,135];
 v2 = link1*link2;
 v2 = v2(1:3,4)';
 v3 = link1*link2*link3;
 v3 = v3(1:3,4);
+
+% Plot the stick model
 figure(1)
 plot3([0,v1(1),v2(1),v3(1)],[0,v1(2),v2(2), v3(2)],[0,v1(3),v2(3), v3(3)],'b-o')
 hold on
@@ -240,7 +270,10 @@ hold off
 
 end
 
+
 function [a] = cubicTrajectory(qi,qf,ti,tf,vi,vf)
+%cubicTrajectory Calculates cubic coefficients for a joint trajectory
+%   Solves a system of equations to find the cubic coefficients
 syms a0 a1 a2 a3;
 
 eqns = [a0 + a1*ti + a2*ti^2 + a3*ti^3 == qi,
@@ -256,22 +289,30 @@ a(3)=out.a2;
 a(4)=out.a3;
 end
 
+
 function [q,time] = interpolate(a,ti,tf)
-%UNTITLED Summary of this function goes here
-%   Detailed explanation goes here
-step = (tf-ti)/10;
+%interpolate Interpolate 10 setpoints for a given trajectory
+%   Generate 10 evenly spaced time stamps between the initial and final times
+%   and then calcultes each setpoint based off the inputted cubic coefficients
+
+step = (tf-ti)/10; % Step size
 n=1;
+
+% Initialize position and time arrays
 val= zeros(1,10);
 timeStamp = zeros(1,10);
+
+% Step through each timestamp, calculating angle position for each
 for t = ti+step:step:tf
     val(1,n)= a(1)+a(2)*t+a(3)*t^2+a(4)*t^3;
     timeStamp(1,n)= t;
     n=n+1;
 end
 time = timeStamp;
-q = val; %(4096/(2*pi))*val;
+q = (4096/(2*pi))*val; % Convert angle into an encoder value
 end
 
+% Converts encoder values into angles
 function [angle] = rad(enc)
 angle=enc*((2*pi)/4096);
 end
