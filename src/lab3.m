@@ -47,38 +47,53 @@ empty = zeros(15, 1, 'single');
 positionMatrix=zeros(3, 7);
 i=1;
 
-joint1 = [convertToMM(9), convertToMM(3), 200,convertToMM(9), 250,100];
+joint1 = [convertToMM(9), convertToMM(3), 250,convertToMM(9), 250,100];
 joint2 = [convertToMM(-5), convertToMM(3), 0,convertToMM(-5),20,0];
 joint3 = [convertToMM(0), convertToMM(-1), 150,convertToMM(0),40,-10];
+
+
+lin1=linInterpolate([joint1(1) joint2(1) joint3(1)],[joint1(2) joint2(2) joint3(2)]);
+lin2=linInterpolate([joint1(2) joint2(2) joint3(2)],[joint1(3) joint2(3) joint3(3)]);
+lin3=linInterpolate([joint1(3) joint2(3) joint3(3)],[joint1(4) joint2(4) joint3(4)]);
+
+linTraj = [lin1, lin2, lin3];
 
 setpoints = zeros(4,3);
 for k = 1:4
     setpoints(k,:) = ikin(joint1(k), joint2(k), joint3(k));
 end
 
-traj2A = quinticTrajectory(convertToMM(9),rad(55),0,1.25,0,0,0,0);
-traj2B = quinticTrajectory(convertToMM(3),rad(41),1.25,2.5,0,0,0,0);
-traj2C= quinticTrajectory(rad(41),rad(650),2.5,3.75,0,0,0,0);
-traj2D= quinticTrajectory(rad(650),rad(55),3.75,5,0,0,0,0);
+traj1A = quinticTrajectory(setpoints(1,1),setpoints(2,1),0,1.25,0,0,0,0);
+traj1B = quinticTrajectory(setpoints(2,1),setpoints(3,1),1.25,2.5,0,0,0,0);
+traj1C= quinticTrajectory(setpoints(3,1),setpoints(4,1),2.5,3.75,0,0,0,0);
 
-traj3A = quinticTrajectory(0,rad(-290),0,1.25,0,0,0,0);
-traj3B = quinticTrajectory(rad(-290),rad(300),1.25,2.5,0,0,0,0);
-traj3C = quinticTrajectory(rad(300),rad(-350),2.5,3.75,0,0,0,0);
-traj3D = quinticTrajectory(rad(-350),rad(-290),3.75,5,0,0,0,0);
+traj2A = quinticTrajectory(setpoints(1,2),setpoints(2,2),0,1.25,0,0,0,0);
+traj2B = quinticTrajectory(setpoints(2,2),setpoints(3,2),1.25,2.5,0,0,0,0);
+traj2C= quinticTrajectory(setpoints(3,2),setpoints(4,2),2.5,3.75,0,0,0,0);
+
+
+traj3A = quinticTrajectory(setpoints(1,3),setpoints(2,3),0,1.25,0,0,0,0);
+traj3B = quinticTrajectory(setpoints(2,3),setpoints(3,3),1.25,2.5,0,0,0,0);
+traj3C = quinticTrajectory(setpoints(3,3),setpoints(4,3),2.5,3.75,0,0,0,0);
+
+[interp1A, ] = interpolate2(traj1A, 0,1.25);
+[interp1B, ] = interpolate2(traj1B, 1.25,2.5);
+[interp1C, ] = interpolate2(traj1C, 2.5,3.75);
+
 
 [interp2A, time2A] = interpolate2(traj2A, 0,1.25);
 [interp2B, time2B] = interpolate2(traj2B, 1.25,2.5);
 [interp2C, time2C] = interpolate2(traj2C, 2.5,3.75);
-[interp2D, time2D] = interpolate2(traj2D, 3.75,5);
+
 
 [interp3A, ] = interpolate2(traj3A, 0,1.25);
 [interp3B, ] = interpolate2(traj3B, 1.25,2.5);
 [interp3C, ] = interpolate2(traj3C, 2.5,3.75);
-[interp3D, ] = interpolate2(traj3D, 3.75,5);
 
-trajJoint2 = [interp2A interp2B interp2C interp2D];
-trajJoint3 = [interp3A interp3B interp3C interp3D];
-time = [time2A time2B time2C time2D];
+trajJoint1 = [interp1A interp1B interp1C];
+trajJoint2 = [interp2A interp2B interp2C];
+trajJoint3 = [interp3A interp3B interp3C];
+time = [time2A time2B time2C];
 
 %x 9 y -5 z 0
 %x 11 y 0 z 9
@@ -96,16 +111,16 @@ notReachedSetpoint = 1;
 
 try
     tic
-    for k = 1:4
+    for k = 1:30
         
         %DEBUG   = true;          % enables/disables debug prints
         
-        setpoint = ikin(joint1(k), joint2(k), joint3(k));
+        %setpoint = ikin(linTraj(1,k), linTraj(2,k), linTraj(3,k));
         %stickModel(setpoint);
         
-        packet(1) = convertToEnc(setpoint(1)); %Writes setpoint to joint 1
-        packet(4) = convertToEnc(setpoint(2)); %Writes setpoint to joint 2
-        packet(7) = convertToEnc(setpoint(3)); %Writes setpoint to joint 3
+        packet(1) = convertToEnc(trajJoint1(k)); %Writes setpoint to joint 1
+        packet(4) = convertToEnc(trajJoint2(k)); %Writes setpoint to joint 2
+        packet(7) = convertToEnc(trajJoint3(k)); %Writes setpoint to joint 3
         
         % Send packet to the server and get the response
         %pp.write sends a 15 float packet to the micro controller
@@ -116,7 +131,7 @@ try
         %pp.read reads a returned 15 float backet from the nucleo.
         returnPacket = pp.read(SERV_ID);
         notReachedSetpoint = 1;
-        targetTime = toc + 3;
+        targetTime = toc + .125;
         while notReachedSetpoint
             
             %Write and reading from the Status server to get encoder positions and motor velocities
@@ -196,18 +211,18 @@ try
     xlabel('Time[s]'), ylabel('Velocity[rad/s]');
     hold off
     
-    figure(5)
-    plot(positionMatrix(:,4),positionMatrix(:,6),'r', 'LineWidth', 2)
-    grid on
-    hold on
-    title('X-Position vs. Z-Position ');
-    set(gca, 'fontsize', 16);
-    xlabel('X Position[mm]'), ylabel('Z Position[mm]');
-    hold off
+%     figure(5)
+%     plot(positionMatrix(:,4),positionMatrix(:,6),'r', 'LineWidth', 2)
+%     grid on
+%     hold on
+%     title('X-Position vs. Z-Position ');
+%     set(gca, 'fontsize', 16);
+%     xlabel('X Position[mm]'), ylabel('Z Position[mm]');
+%     hold off
     
     
     figure(6)
-    plot(time,zeros(1,40),'r', 'LineWidth', 2)
+    plot(time,trajJoint1,'r', 'LineWidth', 2)
     grid on
     hold on
     plot(time,trajJoint2,'b', 'LineWidth', 2)
@@ -219,6 +234,18 @@ try
     hold off
     
     figure(7)
+    plot(positionMatrix(1:end-2,7),rdivide(diff(positionMatrix(:,1)',2),diff(positionMatrix(:,7)',2)) ,'r', 'LineWidth', 2)
+    grid on
+    hold on
+    plot(positionMatrix(1:end-2,7),rdivide(diff(positionMatrix(:,2)',2),diff(positionMatrix(:,7)',2)),'b', 'LineWidth', 2)
+    plot(positionMatrix(1:end-2,7),rdivide(diff(positionMatrix(:,3)',2),diff(positionMatrix(:,7)',2)),'g', 'LineWidth',2)
+    title('Joint Acceleration vs. Time');
+    set(gca, 'fontsize', 16);
+    legend({'Joint 1', 'Joint 2','Joint 3'});
+    xlabel('Time[s]'), ylabel('Accelertation[rad/s^2]');
+    hold off
+    
+    figure(8)
     plot3(positionMatrix(:,4),positionMatrix(:,5),positionMatrix(:,6),'g.-');
     hold on
     title('End Effector Path in Task Space');
@@ -343,7 +370,7 @@ disp(theta(2))
 theta(3) = -1*((pi/2) - acos((l2^2+l3^2-l4^2)/(2*l2*l3))); 
 disp(theta(3))
 
-if((theta(1)> 1.54) || (theta(1)< -1.515) || (theta(2)> 1.725) || (theta(2)< -.14) || (theta(3)> 3.85) || (theta(3)< -.50))
+if((theta(1)> 1.54) || (theta(1)< -1.515) || (theta(2)> 1.725) || (theta(2)< -.14) || (theta(3)> 3.85) || (theta(3)< -.55))
    error('Out of Joint Range'); 
 end
 
@@ -377,4 +404,16 @@ a(4)=out.a3;
 a(5)=out.a4;
 a(6)=out.a5;
 
+end
+
+function[pos] = linInterpolate(pi,pf)
+pos=zeros(3,10);
+stepx= (pf(1)-pi(1))/10;
+stepy= (pf(2)-pi(2))/10;
+stepz= (pf(3)-pi(3))/10;
+for t = 1:10
+    pos(1,t)= pi(1)+stepx*t;
+    pos(2,t)= pi(2)+stepy*t;
+    pos(3,t)= pi(3)+stepz*t;
+end
 end
