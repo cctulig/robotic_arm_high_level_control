@@ -47,34 +47,29 @@ empty = zeros(15, 1, 'single');
 positionMatrix=zeros(3, 7);
 i=1;
 
-joint1 = [convertToMM(9), convertToMM(3), 250,convertToMM(9), 250,100];
-joint2 = [convertToMM(-5), convertToMM(3), 0,convertToMM(-5),20,0];
-joint3 = [convertToMM(0), convertToMM(-1), 150,convertToMM(0),40,-10];
+xPos = [convertToMM(9), convertToMM(3), 250,convertToMM(9)];
+yPos = [convertToMM(-5), convertToMM(3), 0, convertToMM(-5)];
+zPos = [convertToMM(0), convertToMM(-1), 150,convertToMM(0)];
 
 
-lin1=linInterpolate([joint1(1) joint2(1) joint3(1)],[joint1(2) joint2(2) joint3(2)]);
-lin2=linInterpolate([joint1(2) joint2(2) joint3(2)],[joint1(3) joint2(3) joint3(3)]);
-lin3=linInterpolate([joint1(3) joint2(3) joint3(3)],[joint1(4) joint2(4) joint3(4)]);
+lin1=linInterpolate([xPos(1) yPos(1) zPos(1)],[xPos(2) yPos(2) zPos(2)]);
+lin2=linInterpolate([xPos(2) yPos(2) zPos(2)],[xPos(3) yPos(3) zPos(3)]);
+lin3=linInterpolate([xPos(3) yPos(3) zPos(3)],[xPos(4) yPos(4) zPos(4)]);
 
 linTraj = [lin1, lin2, lin3];
 
-setpoints = zeros(4,3);
-for k = 1:4
-    setpoints(k,:) = ikin(joint1(k), joint2(k), joint3(k));
-end
+traj1A = quinticTrajectory(xPos(1),xPos(2),0,1.25,0,0,0,0);
+traj1B = quinticTrajectory(xPos(2),xPos(3),1.25,2.5,0,0,0,0);
+traj1C= quinticTrajectory(xPos(3),xPos(4),2.5,3.75,0,0,0,0);
 
-traj1A = quinticTrajectory(setpoints(1,1),setpoints(2,1),0,1.25,0,0,0,0);
-traj1B = quinticTrajectory(setpoints(2,1),setpoints(3,1),1.25,2.5,0,0,0,0);
-traj1C= quinticTrajectory(setpoints(3,1),setpoints(4,1),2.5,3.75,0,0,0,0);
-
-traj2A = quinticTrajectory(setpoints(1,2),setpoints(2,2),0,1.25,0,0,0,0);
-traj2B = quinticTrajectory(setpoints(2,2),setpoints(3,2),1.25,2.5,0,0,0,0);
-traj2C= quinticTrajectory(setpoints(3,2),setpoints(4,2),2.5,3.75,0,0,0,0);
+traj2A = quinticTrajectory(yPos(1),yPos(2),0,1.25,0,0,0,0);
+traj2B = quinticTrajectory(yPos(2),yPos(3),1.25,2.5,0,0,0,0);
+traj2C= quinticTrajectory(yPos(3),yPos(4),2.5,3.75,0,0,0,0);
 
 
-traj3A = quinticTrajectory(setpoints(1,3),setpoints(2,3),0,1.25,0,0,0,0);
-traj3B = quinticTrajectory(setpoints(2,3),setpoints(3,3),1.25,2.5,0,0,0,0);
-traj3C = quinticTrajectory(setpoints(3,3),setpoints(4,3),2.5,3.75,0,0,0,0);
+traj3A = quinticTrajectory(zPos(1),zPos(2),0,1.25,0,0,0,0);
+traj3B = quinticTrajectory(zPos(2),zPos(3),1.25,2.5,0,0,0,0);
+traj3C = quinticTrajectory(zPos(3),zPos(4),2.5,3.75,0,0,0,0);
 
 [interp1A, ] = interpolate2(traj1A, 0,1.25);
 [interp1B, ] = interpolate2(traj1B, 1.25,2.5);
@@ -90,10 +85,15 @@ traj3C = quinticTrajectory(setpoints(3,3),setpoints(4,3),2.5,3.75,0,0,0,0);
 [interp3B, ] = interpolate2(traj3B, 1.25,2.5);
 [interp3C, ] = interpolate2(traj3C, 2.5,3.75);
 
-trajJoint1 = [interp1A interp1B interp1C];
-trajJoint2 = [interp2A interp2B interp2C];
-trajJoint3 = [interp3A interp3B interp3C];
+trajxPos = [interp1A interp1B interp1C];
+trajyPos = [interp2A interp2B interp2C];
+trajzPos = [interp3A interp3B interp3C];
 time = [time2A time2B time2C];
+
+setpoints = zeros(4,3);
+for k = 1:4
+    setpoints(k,:) = ikin(trajxPos(k), trajyPos(k), trajzPos(k));
+end
 
 %x 9 y -5 z 0
 %x 11 y 0 z 9
@@ -115,12 +115,20 @@ try
         
         %DEBUG   = true;          % enables/disables debug prints
         
-        %setpoint = ikin(linTraj(1,k), linTraj(2,k), linTraj(3,k));
-        %stickModel(setpoint);
+        %         setpoint = ikin(linTraj(1,k), linTraj(2,k), linTraj(3,k));
+        %         %stickModel(setpoint);
+        %
+        %         packet(1) = convertToEnc(setpoint(1));
+        %         packet(4) = convertToEnc(setpoint(2));
+        %         packet(7) = convertToEnc(setpoint(3));
         
-        packet(1) = convertToEnc(trajJoint1(k)); %Writes setpoint to joint 1
-        packet(4) = convertToEnc(trajJoint2(k)); %Writes setpoint to joint 2
-        packet(7) = convertToEnc(trajJoint3(k)); %Writes setpoint to joint 3
+        setpoint = ikin(trajxPos(k), trajyPos(k), trajzPos(k));
+        
+        packet(1) = convertToEnc(setpoint(1)); %Writes setpoint to joint 1
+        packet(4) = convertToEnc(setpoint(2)); %Writes setpoint to joint 2
+        packet(7) = convertToEnc(setpoint(3)); %Writes setpoint to joint 3
+        
+        startTime = toc;
         
         % Send packet to the server and get the response
         %pp.write sends a 15 float packet to the micro controller
@@ -130,6 +138,11 @@ try
         
         %pp.read reads a returned 15 float backet from the nucleo.
         returnPacket = pp.read(SERV_ID);
+        
+        roundTrip = toc - startTime;
+        disp('Round Trip Time: ')
+        disp(roundTrip)
+        
         notReachedSetpoint = 1;
         targetTime = toc + .125;
         while notReachedSetpoint
@@ -157,8 +170,8 @@ try
             
             
             %Once setpoint is roughly reached, move on to the next setpoint
-            %             if statusPacket(4) < joint2(k) + 10 && statusPacket(4) > joint2(k) - 10
-            %                 if statusPacket(7) < joint3(k) + 10 && statusPacket(7) > joint3(k) - 10
+            %             if statusPacket(4) < yPos(k) + 10 && statusPacket(4) > yPos(k) - 10
+            %                 if statusPacket(7) < zPos(k) + 10 && statusPacket(7) > zPos(k) - 10
             %                     notReachedSetpoint = 0;
             %                 end
             %             end
@@ -171,7 +184,7 @@ try
         end
     end
     
-
+    
     
     csvwrite('positionMatrix.csv',positionMatrix);
     
@@ -211,22 +224,22 @@ try
     xlabel('Time[s]'), ylabel('Velocity[rad/s]');
     hold off
     
-%     figure(5)
-%     plot(positionMatrix(:,4),positionMatrix(:,6),'r', 'LineWidth', 2)
-%     grid on
-%     hold on
-%     title('X-Position vs. Z-Position ');
-%     set(gca, 'fontsize', 16);
-%     xlabel('X Position[mm]'), ylabel('Z Position[mm]');
-%     hold off
+    %     figure(5)
+    %     plot(positionMatrix(:,4),positionMatrix(:,6),'r', 'LineWidth', 2)
+    %     grid on
+    %     hold on
+    %     title('X-Position vs. Z-Position ');
+    %     set(gca, 'fontsize', 16);
+    %     xlabel('X Position[mm]'), ylabel('Z Position[mm]');
+    %     hold off
     
     
     figure(6)
-    plot(time,trajJoint1,'r', 'LineWidth', 2)
+    plot(time,trajxPos,'r', 'LineWidth', 2)
     grid on
     hold on
-    plot(time,trajJoint2,'b', 'LineWidth', 2)
-    plot(time,trajJoint3,'g', 'LineWidth', 2)
+    plot(time,trajyPos,'b', 'LineWidth', 2)
+    plot(time,trajzPos,'g', 'LineWidth', 2)
     title('Planned Trajectory');
     set(gca, 'fontsize', 16);
     legend({'Theta1', 'Theta2', 'Theta3'});
@@ -367,17 +380,17 @@ theta(1) = atan2(y, x);
 disp(theta(1))
 theta(2) = (atan2(l5, l6) + acos((l2^2+l4^2-l3^2)/(2*l2*l4)));
 disp(theta(2))
-theta(3) = -1*((pi/2) - acos((l2^2+l3^2-l4^2)/(2*l2*l3))); 
+theta(3) = -1*((pi/2) - acos((l2^2+l3^2-l4^2)/(2*l2*l3)));
 disp(theta(3))
 
 if((theta(1)> 1.54) || (theta(1)< -1.515) || (theta(2)> 1.725) || (theta(2)< -.14) || (theta(3)> 3.85) || (theta(3)< -.55))
-   error('Out of Joint Range'); 
+    error('Out of Joint Range');
 end
 
 if(z< -45 || z > 260 || x < -45 || x > 300 || y < -150 || y > 150)
-   error('Out of Bounds'); 
+    error('Out of Bounds');
 end
-    
+
 
 end
 
@@ -388,13 +401,13 @@ end
 function [a] = quinticTrajectory(qi,qf,ti,tf,vi,vf,ai,af)
 syms a0 a1 a2 a3 a4 a5;
 
-eqns = [a0 + a1*ti + a2*ti^2 + a3*ti^3 + a4*ti^4+a5*ti^5 ==qi, 
-        a1 + 2*a2*ti + 3*a3*ti^2 + 4*a4*ti^3 + 5*a5*ti^4 ==vi,
-        a0 + a1*tf + a2*tf^2 + a3*tf^3 + a4*tf^4 + a5*tf^5==qf,
-        a1 + 2*a2*tf + 3*a3*tf^2 + 4*a4*tf^3 + 5*a5*tf^4== vf,
-        2*a2 + 6*a3*ti + 12*a4*ti^2 + 20*a5*ti^3 == ai,
-        2*a2 + 6*a3*tf + 12 *a4*tf^2 + 20*a5*tf^3 == af];
-    
+eqns = [a0 + a1*ti + a2*ti^2 + a3*ti^3 + a4*ti^4+a5*ti^5 ==qi,
+    a1 + 2*a2*ti + 3*a3*ti^2 + 4*a4*ti^3 + 5*a5*ti^4 ==vi,
+    a0 + a1*tf + a2*tf^2 + a3*tf^3 + a4*tf^4 + a5*tf^5==qf,
+    a1 + 2*a2*tf + 3*a3*tf^2 + 4*a4*tf^3 + 5*a5*tf^4== vf,
+    2*a2 + 6*a3*ti + 12*a4*ti^2 + 20*a5*ti^3 == ai,
+    2*a2 + 6*a3*tf + 12 *a4*tf^2 + 20*a5*tf^3 == af];
+
 out = solve(eqns,[a0 a1 a2 a3 a4 a5]);  %'MaxDegree', 3);
 
 a(1)=out.a0;
