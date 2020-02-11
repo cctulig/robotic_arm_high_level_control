@@ -20,8 +20,8 @@ clear classes;
 vid = hex2dec('3742');
 pid = hex2dec('0007');
 
-disp (vid);
-disp (pid);
+%disp (vid);
+%disp (pid);
 
 javaaddpath ../lib/SimplePacketComsJavaFat-0.6.4.jar;
 import edu.wpi.SimplePacketComs.*;
@@ -47,10 +47,19 @@ empty = zeros(15, 1, 'single');
 positionMatrix=zeros(3, 7);
 i=1;
 
+%  yPos = zeros(300,1);
+%  zPos = zeros(300,1);
+%  xPos = zeros(300,1);
+% 
+% for y = 1:300
+%    yPos(y) = y - 150;
+%    zPos(y) = 75*sin(2*pi*y/250) + 60;
+%    xPos(y) = 25*sin(2*pi*y/100)+180;
+% end
+
 xPos = [convertToMM(9), convertToMM(3), 250,convertToMM(9)];
 yPos = [convertToMM(-5), convertToMM(3), 0, convertToMM(-5)];
 zPos = [convertToMM(0), convertToMM(-1), 150,convertToMM(0)];
-
 
 lin1=linInterpolate([xPos(1) yPos(1) zPos(1)],[xPos(2) yPos(2) zPos(2)]);
 lin2=linInterpolate([xPos(2) yPos(2) zPos(2)],[xPos(3) yPos(3) zPos(3)]);
@@ -95,12 +104,16 @@ for k = 1:4
     setpoints(k,:) = ikin(trajxPos(k), trajyPos(k), trajzPos(k));
 end
 
-%x 9 y -5 z 0
-%x 11 y 0 z 9
-%x 3 y 4 z -1
-%disp('ikin:')
-%target = ikin(180,100,200);
-%disp('done')
+% x 9 y -5 z 0
+% x 11 y 0 z 9
+% x 3 y 4 z -1
+% disp('ikin:')  title('End Effector Position vs. Time');
+%     set(gca, 'fontsize', 16);
+%     legend({'X Pos', 'Y Pos','Z Pos'});
+%     xlabel('Time[s]'), ylabel('Position[mm]');
+%     hold off
+target = ikin(180,100,200);
+disp('done')
 
 
 packet = zeros(15, 1, 'single');
@@ -110,6 +123,28 @@ notReachedSetpoint = 1;
 
 
 try
+    roundTrip = zeros(500, 1);
+    for l = 1:500
+        tic
+        pp.write(STATUS_ID, empty);   
+        pause(0.003); % Minimum amount of time required between write and read       
+        %pp.read reads a returned 15 float backet from the nucleo.
+        statusPacket = pp.read(STATUS_ID);
+        roundTrip(l) = toc;
+    end
+    
+    figure(12);
+    histogram(roundTrip);
+    hold on
+   title('Histogram of Status Server Response Time');
+    set(gca, 'fontsize', 16);
+    xlabel('Time[s]');
+    hold off
+    fprintf("std: %f\n",std(roundTrip))
+    fprintf("mean: %f\n", mean(roundTrip))
+    fprintf("min: %f\n", min(roundTrip))
+    fprintf("max: %f\n", max(roundTrip))
+    
     tic
     for k = 1:30
         
@@ -140,8 +175,8 @@ try
         returnPacket = pp.read(SERV_ID);
         
         roundTrip = toc - startTime;
-        disp('Round Trip Time: ')
-        disp(roundTrip)
+       % disp('Round Trip Time: ')
+     %   disp(roundTrip)
         
         notReachedSetpoint = 1;
         targetTime = toc + .125;
@@ -151,7 +186,21 @@ try
             pp.write(STATUS_ID, empty);
             
             pause(0.003); % Minimum amount of time required between write and read
-            
+            %     
+%     
+%     figure(6)
+%     plot(time,trajxPos,'r', 'LineWidth', 2)
+%     grid on
+%     hold on
+%     plot(time,trajyPos,'b', 'LineWidth', 2)
+%     plot(time,trajzPos,'g', 'LineWidth', 2)
+%     title('Planned Trajectory');
+%     set(gca, 'fontsize', 16);
+%     legend({'Theta1', 'Theta2', 'Theta3'});
+%     xlabel('Time[s]'), ylabel('Angle[rad]');
+%     hold off
+%     
+
             %pp.read reads a returned 15 float backet from the nucleo.
             statusPacket = pp.read(STATUS_ID);
             
@@ -224,28 +273,28 @@ try
     xlabel('Time[s]'), ylabel('Velocity[rad/s]');
     hold off
     
-    %     figure(5)
-    %     plot(positionMatrix(:,4),positionMatrix(:,6),'r', 'LineWidth', 2)
-    %     grid on
-    %     hold on
-    %     title('X-Position vs. Z-Position ');
-    %     set(gca, 'fontsize', 16);
-    %     xlabel('X Position[mm]'), ylabel('Z Position[mm]');
-    %     hold off
-    
-    
-    figure(6)
-    plot(time,trajxPos,'r', 'LineWidth', 2)
-    grid on
-    hold on
-    plot(time,trajyPos,'b', 'LineWidth', 2)
-    plot(time,trajzPos,'g', 'LineWidth', 2)
-    title('Planned Trajectory');
-    set(gca, 'fontsize', 16);
-    legend({'Theta1', 'Theta2', 'Theta3'});
-    xlabel('Time[s]'), ylabel('Angle[rad]');
-    hold off
-    
+        figure(5)
+        plot(positionMatrix(:,4),positionMatrix(:,6),'r', 'LineWidth', 2)
+        grid on
+        hold on
+        title('X-Position vs. Z-Position ');
+        set(gca, 'fontsize', 16);
+        xlabel('X Position[mm]'), ylabel('Z Position[mm]');
+        hold off
+%     
+%     
+%     figure(6)
+%     plot(time,trajxPos,'r', 'LineWidth', 2)
+%     grid on
+%     hold on
+%     plot(time,trajyPos,'b', 'LineWidth', 2)
+%     plot(time,trajzPos,'g', 'LineWidth', 2)
+%     title('Planned Trajectory');
+%     set(gca, 'fontsize', 16);
+%     legend({'Theta1', 'Theta2', 'Theta3'});
+%     xlabel('Time[s]'), ylabel('Angle[rad]');
+%     hold off
+%     
     figure(7)
     plot(positionMatrix(1:end-2,7),rdivide(diff(positionMatrix(:,1)',2),diff(positionMatrix(:,7)',2)) ,'r', 'LineWidth', 2)
     grid on
@@ -377,11 +426,11 @@ l5 = z-l1;
 l6 = sqrt(x^2 + y^2);
 
 theta(1) = atan2(y, x);
-disp(theta(1))
+%disp(theta(1))
 theta(2) = (atan2(l5, l6) + acos((l2^2+l4^2-l3^2)/(2*l2*l4)));
-disp(theta(2))
+%disp(theta(2))
 theta(3) = -1*((pi/2) - acos((l2^2+l3^2-l4^2)/(2*l2*l3)));
-disp(theta(3))
+%disp(theta(3))
 
 if((theta(1)> 1.54) || (theta(1)< -1.515) || (theta(2)> 1.725) || (theta(2)< -.14) || (theta(3)> 3.85) || (theta(3)< -.55))
     error('Out of Joint Range');
