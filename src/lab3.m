@@ -52,7 +52,18 @@ packet = zeros(15, 1, 'single');
 
 % Setpoints used for arbitrary trajectory for the bonus
 % which we chose to create two sinusoidal wave motions
-%  yPos = zeros(300,1);
+%  yPos = zeros(300,1);T01 = [cos(q(1)), 0, sin(q(1)), 0;
+    sin(q(1)), 0, -cos(q(1)), 0;
+    0, 1, 0, l1;
+    0, 0, 0, 1;];
+T12 = [cos(q(2)), -sin(q(2)), 0, l2*cos(q(2));
+    sin(q(2)) cos(q(2)), 0, l2*sin(q(2));
+    0, 0, 1, 0;
+    0, 0, 0, 1;];
+T23 = [sin(q(3)), cos(q(3)), 0, l3*sin(q(3));
+    -cos(q(3)), sin(q(3)), 0, -1*l3*cos(q(3));
+    0, 0, 1, 0;
+    0, 0, 0, 1;];
 %  zPos = zeros(300,1);
 %  xPos = zeros(300,1);
 % 
