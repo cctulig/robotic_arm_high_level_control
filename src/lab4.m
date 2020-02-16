@@ -30,6 +30,7 @@ import edu.wpi.SimplePacketComs.phy.*;
 import java.util.*;
 import org.hid4java.*;
 import plot_ellipse.*;
+import numericIKAlgo.*;
 import tb_optparse.*;
 version -java
 myHIDSimplePacketComs=HIDfactory.get();
@@ -101,6 +102,33 @@ time = [time2A time2B time2C];
 % We wait to send a new setpoint until the previous has been reached
 notReachedSetpoint = 1;
 try
+    startPos = [xPos(1), yPos(1), zPos(1)];
+    endPos = [xPos(2), yPos(2), zPos(2)];
+    angleStart = ikin(xPos(1), yPos(1), zPos(1));
+    angleEnd = ikin(xPos(2), yPos(2), zPos(2));
+    
+    while notReachedSetpoint
+        J = jacob0(angleStart);
+        Jp = J(1:3, 1:3);
+        dq = numericIKAlgo(Jp, startPos, endPos);
+        angleStart = angleStart + dq;
+        dp = positionVelocity(angleStart, dq);
+        startPos = (fwkin3001(angleStart(1),angleStart(2),angleStart(3)))';
+        stickModel2(angleStart, dp, Jp);
+        
+        pause(.5);
+        
+        if startPos == endPos
+            notReachedSetpoint = false;
+            disp('Current Joint Angles:');
+            disp(angleStart);
+            disp('Target Joint Angles:');
+            disp(angleEnd);
+        end
+    end
+    
+    notReachedSetpoint = 1;
+    
     tic
     % Loop through all 30 (10 per traj.) setpoints
     for k = 1:30
@@ -137,7 +165,7 @@ try
             statusPacket = pp.read(STATUS_ID);
             
             % Convert encoders to radians, then sends those angles to be simulated as a stick model
-            angle = [(statusPacket(1)*2*pi/4096), (statusPacket(4)*2*pi/4096), (statusPacket(7)*2*pi/4096)]
+            angle = [(statusPacket(1)*2*pi/4096), (statusPacket(4)*2*pi/4096), (statusPacket(7)*2*pi/4096)];
             
             position = fwkin3001(angle(1),angle(2),angle(3));
             
@@ -163,7 +191,7 @@ try
             jP= jacobian(1:3,1:3);
             
             dP = positionVelocity(angle, dQ);
-            stickModel(angle,dP,jP)
+            stickModel2(angle,dP,jP)
            
             end
             % Once setpoint is reached, go to the next setpoint
@@ -273,8 +301,9 @@ time = timeStamp;
 q = val; % Convert angle into an encoder value
 end
 
-function [] = stickModel(q, dP,jP)
-%stickModel simulates stick model of arm
+function [] = stickModel2(q, dP,jP)
+%stickModel2 simulates stick model of arm, with a velocity vector on the
+%end effector
 %   Uses variable joint angles and define joint lengths to 
 %   calculate and plot the three joints of the Robotic Arm in MATLAB
 
@@ -306,7 +335,17 @@ hold on
 plot3(v3(1),v3(2),v3(3),'g.-');
 xlim([-400 800]), ylim([-800 800]), zlim([-100 800]);
 quiver3(v3(1),v3(2),v3(3), dP(1),dP(2),dP(3));
-plot_ellipse(jP*jP',v3)
+Vol = plot_ellipse(jP*jP',v3);
+
+ disp('Vol')
+ disp(Vol);
+ 
+ if Vol < 1000000
+    text(200,600,600,'NEARING SINGULARITY', 'Color', 'r', 'FontSize', 11);
+    
+    %error('NEARING SINGULARITY');
+ end
+
 hold off
 
 end
