@@ -102,31 +102,49 @@ time = [time2A time2B time2C];
 % We wait to send a new setpoint until the previous has been reached
 notReachedSetpoint = 1;
 try
-    startPos = [xPos(1), yPos(1), zPos(1)];
-    endPos = [xPos(2), yPos(2), zPos(2)];
+    
+     %[55, 41, 650, 55];
+     %[0,0,0,0]
+     %[-290, 300, -350, -290];
+
+    startPos = [xPos(1), 0, zPos(1)];
+    endPos = [xPos(2), 0, zPos(2)];
     angleStart = ikin(xPos(1), yPos(1), zPos(1));
     angleEnd = ikin(xPos(2), yPos(2), zPos(2));
     
-    while notReachedSetpoint
-        J = jacob0(angleStart);
-        Jp = J(1:3, 1:3);
-        dq = numericIKAlgo(Jp, startPos, endPos);
-        angleStart = angleStart + dq;
-        dp = positionVelocity(angleStart, dq);
-        startPos = (fwkin3001(angleStart(1),angleStart(2),angleStart(3)))';
-        stickModel2(angleStart, dp, Jp);
-        
-        pause(.5);
-        
-        if startPos == endPos
-            notReachedSetpoint = false;
-            disp('Current Joint Angles:');
-            disp(angleStart);
-            disp('Target Joint Angles:');
-            disp(angleEnd);
+    posComp = [0 0 0 0 0 0];
+    %while true
+    for i = 1:4
+        while notReachedSetpoint
+            dq = numericIKAlgo(angleStart, endPos);
+            angleStart = angleStart + dq;
+            startPos = fwkin3001(angleStart(1), angleStart(2), angleStart(3));        
+            pause(.1);
+
+            XZGraph(startPos);
+
+            if startPos(1) > endPos(1) - 1 && startPos(1) < endPos(1) + 1
+                if startPos(3) > endPos(3) - 1 && startPos(3) < endPos(3) + 1
+                    notReachedSetpoint = false;
+                    disp('Current Joint Angles:');
+                    disp(angleStart);
+                    disp('Target Joint Angles:');
+                    disp(angleEnd);
+                end
+            end
         end
+    posComp = [posComp; endPos startPos'];    
+    notReachedSetpoint = 1;
+    mouseInput = ginput(1);
+    endPos(1) = mouseInput(1);
+    endPos(3) = mouseInput(2);
+    angleEnd = ikin(xPos(2), yPos(2), zPos(2));
     end
     
+    csvwrite('PostionComparision.csv', posComp);
+    
+    disp('DONE');
+
     notReachedSetpoint = 1;
     
     tic
@@ -180,7 +198,7 @@ try
             positionMatrix(i,5) = position(2);
             positionMatrix(i,6) = position(3);
             positionMatrix(i,7) = toc;
-            
+             dq
             %Jacobian stuff
             if i>1
             dQ(1)=(positionMatrix(i,1)-positionMatrix(i-1,1))/(positionMatrix(i,7)-positionMatrix(i-1,7));
@@ -301,6 +319,42 @@ time = timeStamp;
 q = val; % Convert angle into an encoder value
 end
 
+function [] = stickModel(q)
+%stickModel simulates stick model of arm
+%   Uses variable joint angles and define joint lengths to 
+%   calculate and plot the three joints of the Robotic Arm in MATLAB
+
+% Matrix of each joint transformation
+link1 = [cos(q(1)), 0, sin(q(1)), 0;
+    sin(q(1)), 0, -cos(q(1)), 0;
+    0, 1, 0, 135;
+    0, 0, 0, 1;];
+link2 = [cos(q(2)), -sin(q(2)), 0, 175*cos(q(2));
+    sin(q(2)) cos(q(2)), 0, 175*sin(q(2));
+    0, 0, 1, 0;
+    0, 0, 0, 1;];
+link3 = [cos(q(3)-pi/2), -sin(q(3)-pi/2), 0, 169.28*cos(q(3)-pi/2);
+    sin(q(3)-pi/2), cos(q(3)-pi/2), 0, 169.28*sin(q(3)-pi/2);
+    0, 0, 1, 0;
+    0, 0, 0, 1;];
+
+% Vectors for each joint
+v1 = [0,0,135];
+v2 = link1*link2;
+v2 = v2(1:3,4)';
+v3 = link1*link2*link3;
+v3 = v3(1:3,4);
+
+% Plot the stick model
+figure(1)
+plot3([0,v1(1),v2(1),v3(1)],[0,v1(2),v2(2), v3(2)],[0,v1(3),v2(3), v3(3)],'b-o')
+hold on
+plot3(v3(1),v3(2),v3(3),'g.-');
+xlim([0 400]), ylim([-400 400]), zlim([-50 400]);
+hold off
+
+end
+
 function [] = stickModel2(q, dP,jP)
 %stickModel2 simulates stick model of arm, with a velocity vector on the
 %end effector
@@ -399,4 +453,17 @@ J=[Jp1(1) Jp2(1) Jp3(1);Jp1(2) Jp2(2) Jp3(2);Jp1(3) Jp2(3) Jp3(3);
 % disp(det(J))
 end
 
+function [] = XZGraph (p)
+
+ % Graph + format for X-Position vs. Z-Position (path of end effector)
+    figure(5)
+    plot(p(1),p(3),'.r')
+    grid on
+    hold on
+    title('X-Position vs. Z-Position ');
+    set(gca, 'fontsize', 16);
+    xlabel('X Position[mm]'), ylabel('Z Position[mm]');
+    xlim([0 300]), ylim([-30 100]);
+    
+end
 

@@ -1,14 +1,19 @@
-function [ dq ] = numericIKAlgo( Jp, pi, pf )
+function [ dq ] = numericIKAlgo( qi, Pf )
 %UNTITLED4 Summary of this function goes here
 %   Detailed explanation goes here
 
-iJp = inv(Jp);
-pE = (pf - pi)';
+G = eye(3,3).*[.1;.1;.1];
+J = jacob0(qi);
+Jp = J(1:3,1:3);
+Jpi = pinv(Jp);
 
-disp('Pe');
-disp(pE)
+Pi = fwkin3001(qi(1), qi(2), qi(3));
+Pdelta = (Pf' - Pi);
 
-dq = (iJp * pE)';
+dq = (Jpi * G * Pdelta)';
+%ikin w/ jacobian -> get positon, get jacobian (3,3) invert, multiply by
+%deriv of final pos and ^ pos
+%
 
 
 end
