@@ -34,9 +34,11 @@ Jp3= cross(T02(1:3,3)',(T03(1:3,4)- T02(1:3,4))');
 J=[Jp1(1) Jp2(1) Jp3(1);Jp1(2) Jp2(2) Jp3(2);Jp1(3) Jp2(3) Jp3(3);
     0 sin(q(1)) sin(q(1)); 0 -cos(q(1)) -cos(q(1)); 1 0 0;];
 
-% disp('Jp')
-% disp(Jp)
-% disp('det')
-% disp(det(Jp))
+Jp = J(1:3,1:3);
+
+ disp('Jp')
+ disp(Jp)
+ disp('det')
+ disp(det(Jp))
 end
 

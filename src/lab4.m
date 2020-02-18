@@ -103,10 +103,10 @@ time = [time2A time2B time2C];
 notReachedSetpoint = 1;
 try
     
-     %[55, 41, 650, 55];
-     %[0,0,0,0]
-     %[-290, 300, -350, -290];
-
+    %[55, 41, 650, 55];
+    %[0,0,0,0]
+    %[-290, 300, -350, -290];
+    
     startPos = [xPos(1), 0, zPos(1)];
     endPos = [xPos(2), 0, zPos(2)];
     angleStart = ikin(xPos(1), yPos(1), zPos(1));
@@ -118,11 +118,26 @@ try
         while notReachedSetpoint
             dq = numericIKAlgo(angleStart, endPos);
             angleStart = angleStart + dq;
-            startPos = fwkin3001(angleStart(1), angleStart(2), angleStart(3));        
+            startPos = fwkin3001(angleStart(1), angleStart(2), angleStart(3));
+            
+            packet(1) = convertToEnc(angleStart(1)); %Writes setpoint to joint 1
+            packet(4) = convertToEnc(angleStart(2)); %Writes setpoint to joint 2
+            packet(7) = convertToEnc(angleStart(3)); %Writes setpoint to joint 3
+            
+            % Send packet to the server and get the response
+            %pp.write sends a 15 float packet to the micro controller
+            pp.write(SERV_ID, packet);
+            
+            pause(0.003); % Minimum amount of time required between write and read
+            
+            %pp.read reads a returned 15 float backet from the nucleo.
+            returnPacket = pp.read(SERV_ID);
+            
             pause(.1);
-
+            
+            stickModel(angleStart);
             XZGraph(startPos);
-
+            
             if startPos(1) > endPos(1) - 1 && startPos(1) < endPos(1) + 1
                 if startPos(3) > endPos(3) - 1 && startPos(3) < endPos(3) + 1
                     notReachedSetpoint = false;
@@ -133,33 +148,33 @@ try
                 end
             end
         end
-    posComp = [posComp; endPos startPos'];    
-    notReachedSetpoint = 1;
-    mouseInput = ginput(1);
-    endPos(1) = mouseInput(1);
-    endPos(3) = mouseInput(2);
-    angleEnd = ikin(xPos(2), yPos(2), zPos(2));
+        posComp = [posComp; endPos startPos'];
+        notReachedSetpoint = 1;
+        mouseInput = ginput(1);
+        endPos(1) = mouseInput(1);
+        endPos(3) = mouseInput(2);
+        angleEnd = ikin(xPos(2), yPos(2), zPos(2));
     end
     
     csvwrite('PostionComparision.csv', posComp);
     
     disp('DONE');
-
+    
     notReachedSetpoint = 1;
     
     tic
     % Loop through all 30 (10 per traj.) setpoints
-    for k = 1:30
+    for k = 1:20
         
         %DEBUG   = true;          % enables/disables debug prints
         
         %Sending cubic Interpolation setpoints to Nucleo
         setpoint = ikin(trajxPos(k), trajyPos(k), trajzPos(k));
         
-       packet(1) = convertToEnc(setpoint(1)); %Writes setpoint to joint 1
-       packet(4) = convertToEnc(setpoint(2)); %Writes setpoint to joint 2
-       packet(7) = convertToEnc(setpoint(3)); %Writes setpoint to joint 3
-                
+%         packet(1) = convertToEnc(setpoint(1)); %Writes setpoint to joint 1
+%         packet(4) = convertToEnc(setpoint(2)); %Writes setpoint to joint 2
+%         packet(7) = convertToEnc(setpoint(3)); %Writes setpoint to joint 3
+        
         % Send packet to the server and get the response
         %pp.write sends a 15 float packet to the micro controller
         pp.write(SERV_ID, packet);
@@ -177,8 +192,8 @@ try
             pp.write(STATUS_ID, empty);
             
             pause(0.003); % Minimum amount of time required between write and read
-            %     
-     
+            %
+            
             %pp.read reads a returned 15 float backet from the nucleo.
             statusPacket = pp.read(STATUS_ID);
             
@@ -198,19 +213,19 @@ try
             positionMatrix(i,5) = position(2);
             positionMatrix(i,6) = position(3);
             positionMatrix(i,7) = toc;
-             dq
+            
             %Jacobian stuff
             if i>1
-            dQ(1)=(positionMatrix(i,1)-positionMatrix(i-1,1))/(positionMatrix(i,7)-positionMatrix(i-1,7));
-            dQ(2)=(positionMatrix(i,2)-positionMatrix(i-1,2))/(positionMatrix(i,7)-positionMatrix(i-1,7));
-            dQ(3)=(positionMatrix(i,3)-positionMatrix(i-1,3))/(positionMatrix(i,7)-positionMatrix(i-1,7));
-            
-            jacobian=jacob0(angle);
-            jP= jacobian(1:3,1:3);
-            
-            dP = positionVelocity(angle, dQ);
-            stickModel2(angle,dP,jP)
-           
+                dQ(1)=(positionMatrix(i,1)-positionMatrix(i-1,1))/(positionMatrix(i,7)-positionMatrix(i-1,7));
+                dQ(2)=(positionMatrix(i,2)-positionMatrix(i-1,2))/(positionMatrix(i,7)-positionMatrix(i-1,7));
+                dQ(3)=(positionMatrix(i,3)-positionMatrix(i-1,3))/(positionMatrix(i,7)-positionMatrix(i-1,7));
+                
+                jacobian=jacob0(angle);
+                jP= jacobian(1:3,1:3);
+                
+                dP = positionVelocity(angle, dQ);
+                stickModel2(angle,dP,jP)
+                
             end
             % Once setpoint is reached, go to the next setpoint
             if targetTime < toc
@@ -220,7 +235,7 @@ try
             i=i+1;
         end
     end
-      
+    
 catch exception
     getReport(exception)
     disp('Exited on error, clean shutdown');
@@ -238,7 +253,7 @@ end
 function [ theta ] = ikin( x, y, z )
 %ikin Inverse kinematices of a given (x,y,z) setpoint
 %   Uses a geometric approach to calculate theta1, theta2, theta3 based off the x,y,z inputs
-% 
+%
 
 %task space is 254mm x 304mm x 304mm
 
@@ -250,7 +265,7 @@ l4 = sqrt(x^2 + y^2 + (z-l1)^2);
 l5 = z-l1;
 l6 = sqrt(x^2 + y^2);
 
-% Calculating theta1,2,3 
+% Calculating theta1,2,3
 theta(1) = atan2(y, x);
 %disp(theta(1))
 theta(2) = (atan2(l5, l6) + acos((l2^2+l4^2-l3^2)/(2*l2*l4)));
@@ -321,7 +336,7 @@ end
 
 function [] = stickModel(q)
 %stickModel simulates stick model of arm
-%   Uses variable joint angles and define joint lengths to 
+%   Uses variable joint angles and define joint lengths to
 %   calculate and plot the three joints of the Robotic Arm in MATLAB
 
 % Matrix of each joint transformation
@@ -358,7 +373,7 @@ end
 function [] = stickModel2(q, dP,jP)
 %stickModel2 simulates stick model of arm, with a velocity vector on the
 %end effector
-%   Uses variable joint angles and define joint lengths to 
+%   Uses variable joint angles and define joint lengths to
 %   calculate and plot the three joints of the Robotic Arm in MATLAB
 
 % Matrix of each joint transformation
@@ -383,22 +398,26 @@ v3 = link1*link2*link3;
 v3 = v3(1:3,4);
 
 % Plot the stick model
-figure(1)
+figure(2)
 plot3([0,v1(1),v2(1),v3(1)],[0,v1(2),v2(2), v3(2)],[0,v1(3),v2(3), v3(3)],'b-o')
 hold on
 plot3(v3(1),v3(2),v3(3),'g.-');
 xlim([-400 800]), ylim([-800 800]), zlim([-100 800]);
 quiver3(v3(1),v3(2),v3(3), dP(1),dP(2),dP(3));
-Vol = plot_ellipse(jP*jP',v3);
+%Vol = plot_ellipse(jP*jP',v3);
 
- disp('Vol')
- disp(Vol);
- 
- if Vol < 1000000
-    text(200,600,600,'NEARING SINGULARITY', 'Color', 'r', 'FontSize', 11);
-    
-    %error('NEARING SINGULARITY');
- end
+title('End Effector Position');
+set(gca, 'fontsize', 16);
+xlabel('X Position[mm]'), ylabel('Y Position[mm]'), zlabel('Z Position[mm]');
+
+%disp('Vol')
+%disp(Vol);
+
+% if Vol < 1000000
+%     text(200,600,600,'NEARING SINGULARITY', 'Color', 'r', 'FontSize', 11);
+%     
+%     %error('NEARING SINGULARITY');
+% end
 
 hold off
 
@@ -409,15 +428,14 @@ function [ dP ] = positionVelocity( q, dQ )
 %   Detailed explanation goes here
 J=jacob0(q);
 dP=J*dQ';
-
 end
 function [ J ] = jacob0( q )
 %UNTITLED Summary of this function goes here
 %   Detailed explanation goes here
 
- l1 = 135;
- l2 = 175;
- l3 = 169.28;
+l1 = 135;
+l2 = 175;
+l3 = 169.28;
 
 T01 = [cos(q(1)), 0, sin(q(1)), 0;
     sin(q(1)), 0, -cos(q(1)), 0;
@@ -455,15 +473,15 @@ end
 
 function [] = XZGraph (p)
 
- % Graph + format for X-Position vs. Z-Position (path of end effector)
-    figure(5)
-    plot(p(1),p(3),'.r')
-    grid on
-    hold on
-    title('X-Position vs. Z-Position ');
-    set(gca, 'fontsize', 16);
-    xlabel('X Position[mm]'), ylabel('Z Position[mm]');
-    xlim([0 300]), ylim([-30 100]);
-    
+% Graph + format for X-Position vs. Z-Position (path of end effector)
+figure(5)
+plot(p(1),p(3),'.r')
+grid on
+hold on
+title('X-Position vs. Z-Position ');
+set(gca, 'fontsize', 16);
+xlabel('X Position[mm]'), ylabel('Z Position[mm]');
+xlim([0 300]), ylim([-30 100]);
+
 end
 
