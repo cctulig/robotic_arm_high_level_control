@@ -40,7 +40,7 @@ function T_cam_to_checker = getCamToCheckerboard(cam, cameraParams)
     [im, newOrigin] = undistortImage(imOrig, cameraParams, 'OutputView', 'full');
 
 %%  3. Detect the checkerboard in the image
-    [imagePoints, boardSize] = detectCheckerboardPoints(im);
+    [imagePoints, boardSize] = detectCheckerboardPoints(im)
 
 %%  4. Adjust the imagePoints so that they are expressed in the coordinate system
     % used in the original image, before it was undistorted.  This adjustment
