@@ -57,6 +57,7 @@ packet = zeros(15, 1, 'single');
 index = 1;
 i=1;
 
+% Target setpoint positions
 xPos = [convertToMM(9), convertToMM(3), 250,convertToMM(9)];
 yPos = [convertToMM(-5), convertToMM(3), 0, convertToMM(-5)];
 zPos = [convertToMM(0), convertToMM(-1), 150,convertToMM(0)];
@@ -107,19 +108,24 @@ try
     %[0,0,0,0]
     %[-290, 300, -350, -290];
     
+    % Start and End positions/angles for Inverse Differential Kinematics
     startPos = [xPos(1), 0, zPos(1)];
     endPos = [xPos(2), 0, zPos(2)];
     angleStart = ikin(xPos(1), yPos(1), zPos(1));
     angleEnd = ikin(xPos(2), yPos(2), zPos(2));
     
     posComp = [0 0 0 0 0 0];
-    %while true
+    
+    % Loop for 4 Setpoints
     for i = 1:4
+        % Loop until setpoint is reached
         while notReachedSetpoint
+            % Calculate Inverse Differential Kinematics
             dq = numericIKAlgo(angleStart, endPos);
             angleStart = angleStart + dq;
             startPos = fwkin3001(angleStart(1), angleStart(2), angleStart(3));
             
+            % Write to each joint the angle for each interpolation
             packet(1) = convertToEnc(angleStart(1)); %Writes setpoint to joint 1
             packet(4) = convertToEnc(angleStart(2)); %Writes setpoint to joint 2
             packet(7) = convertToEnc(angleStart(3)); %Writes setpoint to joint 3
@@ -135,9 +141,11 @@ try
             
             pause(.1);
             
+            % Graph stick model and end effector's position in XZ plane
             stickModel(angleStart);
             XZGraph(startPos);
             
+            % Check if setpoint is reached
             if startPos(1) > endPos(1) - 1 && startPos(1) < endPos(1) + 1
                 if startPos(3) > endPos(3) - 1 && startPos(3) < endPos(3) + 1
                     notReachedSetpoint = false;
@@ -148,20 +156,29 @@ try
                 end
             end
         end
+        
+        % Record end positions of each trajectory
         posComp = [posComp; endPos startPos'];
         notReachedSetpoint = 1;
+        
+        % Get a new mouse input for next target trajectory
         mouseInput = ginput(1);
         endPos(1) = mouseInput(1);
         endPos(3) = mouseInput(2);
         angleEnd = ikin(xPos(2), yPos(2), zPos(2));
     end
     
+    % Output end positions to csv file
     csvwrite('PostionComparision.csv', posComp);
     
     disp('DONE');
     
     notReachedSetpoint = 1;
     
+    %
+    % Code for implementing Live Plotting of Velocity Vector and Manipulability Ellipsoid
+    %
+
     tic
     % Loop through all 30 (10 per traj.) setpoints
     for k = 1:20
@@ -403,21 +420,25 @@ plot3([0,v1(1),v2(1),v3(1)],[0,v1(2),v2(2), v3(2)],[0,v1(3),v2(3), v3(3)],'b-o')
 hold on
 plot3(v3(1),v3(2),v3(3),'g.-');
 xlim([-400 800]), ylim([-800 800]), zlim([-100 800]);
+
+% Velocity Vector
 quiver3(v3(1),v3(2),v3(3), dP(1),dP(2),dP(3));
-%Vol = plot_ellipse(jP*jP',v3);
+
+% Manipulability Ellipsoid
+Vol = plot_ellipse(jP*jP',v3);
 
 title('End Effector Position');
 set(gca, 'fontsize', 16);
 xlabel('X Position[mm]'), ylabel('Y Position[mm]'), zlabel('Z Position[mm]');
 
-%disp('Vol')
-%disp(Vol);
+disp('Vol')
+disp(Vol);
 
-% if Vol < 1000000
-%     text(200,600,600,'NEARING SINGULARITY', 'Color', 'r', 'FontSize', 11);
-%     
-%     %error('NEARING SINGULARITY');
-% end
+ if Vol < 1000000
+     text(200,600,600,'NEARING SINGULARITY', 'Color', 'r', 'FontSize', 11);
+     
+     error('NEARING SINGULARITY');
+ end
 
 hold off
 
@@ -472,7 +493,6 @@ J=[Jp1(1) Jp2(1) Jp3(1);Jp1(2) Jp2(2) Jp3(2);Jp1(3) Jp2(3) Jp3(3);
 end
 
 function [] = XZGraph (p)
-
 % Graph + format for X-Position vs. Z-Position (path of end effector)
 figure(5)
 plot(p(1),p(3),'.r')
