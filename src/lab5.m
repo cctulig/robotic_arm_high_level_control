@@ -28,6 +28,8 @@ img = snapshot(cam);
 % load('test.png');
 
 [centroids, BW] = centroidFinder(img, cameraParams);
+
+[BW2,areas] = findObjSize(img, centroids);
 %     0.0266    0.9995   -0.0181  128.4418
 %    -0.8674    0.0321    0.4964   47.3483
 %     0.4968    0.0025    0.8678 -336.2277
