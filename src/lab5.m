@@ -1,10 +1,4 @@
 
-
-%getCamToCheckerboard(cam, cameraParams)
-
-
-
-
 T_0CH = [1 0 0 (52.8+175); 0 1 0 101.6; 0 0 1 -30; 0 0 0 1];
 T_CACH =  [0.0266   -0.8675    0.4968  107.7135;
     0.9995    0.0321    0.0025  101.8156;
@@ -30,6 +24,26 @@ img = snapshot(cam);
 [centroids, BW] = centroidFinder(img, cameraParams);
 
 [BW2,areas] = findObjSize(img, centroids, cameraParams);
+
+
+centroids
+areas
+
+figure(1)
+colormap(gray(2));
+image(BW2)
+hold on
+plot(centroids(1,1),centroids(1,2),'.r')
+plot(centroids(2,1),centroids(2,2),'.r')
+plot(centroids(3,1),centroids(3,2),'.r')
+
+grid on
+hold on
+title('Black-White Image After Size Filter');
+set(gca, 'fontsize', 16);
+xlabel('X [mm]'), ylabel('Y [mm]');
+hold off
+
 %     0.0266    0.9995   -0.0181  128.4418
 %    -0.8674    0.0321    0.4964   47.3483
 %     0.4968    0.0025    0.8678 -336.2277

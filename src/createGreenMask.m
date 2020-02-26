@@ -1,4 +1,4 @@
-function [BW,maskedRGBImage] = createSizeMask(RGB)
+function [BW,maskedRGBImage] = createGreenMask(RGB)
 %createMask  Threshold RGB image using auto-generated code from colorThresholder app.
 %  [BW,MASKEDRGBIMAGE] = createMask(RGB) thresholds image RGB using
 %  auto-generated code from the colorThresholder App. The colorspace and
@@ -11,19 +11,19 @@ function [BW,maskedRGBImage] = createSizeMask(RGB)
 
 
 % Convert RGB image to chosen color space
-I = rgb2hsv(RGB);
+I = RGB;
 
 % Define thresholds for channel 1 based on histogram settings
 channel1Min = 0.000;
-channel1Max = 1.000;
+channel1Max = 255.000;
 
 % Define thresholds for channel 2 based on histogram settings
 channel2Min = 0.000;
-channel2Max = 1.000;
+channel2Max = 255.000;
 
 % Define thresholds for channel 3 based on histogram settings
 channel3Min = 0.000;
-channel3Max = 1.000;
+channel3Max = 255.000;
 
 % Create mask based on chosen histogram thresholds
 sliderBW = (I(:,:,1) >= channel1Min ) & (I(:,:,1) <= channel1Max) & ...
@@ -35,13 +35,6 @@ I = double(I);
 [m,n,~] = size(I);
 polyBW = false([m,n]);
 I = reshape(I,[m*n 3]);
-
-% Convert HSV color space to canonical coordinates
-Xcoord = I(:,2).*I(:,3).*cos(2*pi*I(:,1));
-Ycoord = I(:,2).*I(:,3).*sin(2*pi*I(:,1));
-I(:,1) = Xcoord;
-I(:,2) = Ycoord;
-clear Xcoord Ycoord
 
 % Project 3D data into 2D projected view from current camera view point within app
 J = rotateColorSpace(I);
@@ -63,14 +56,14 @@ end
 function J = rotateColorSpace(I)
 
 % Translate the data to the mean of the current image within app
-shiftVec = [0.016387 0.022624 0.406679];
+shiftVec = [105.466986 105.103005 99.178773];
 I = I - shiftVec;
 I = [I ones(size(I,1),1)]';
 
 % Apply transformation matrix
-tMat = [-0.740292 -0.548586 0.000000 0.649935;
-    -0.008029 0.037185 0.993425 -0.507368;
-    0.296013 -1.370937 0.026946 8.925134;
+tMat = [0.003724 0.000553 0.000000 -0.573609;
+    -0.000043 0.000244 0.003242 -0.528339;
+    -0.000603 0.003397 -0.000233 8.283650;
     0.000000 0.000000 0.000000 1.000000];
 
 J = (tMat*I)';
@@ -79,31 +72,10 @@ end
 function polyBW = applyPolygons(J,polyBW)
 
 % Define each manually generated ROI
-hPoints(1).data = [0.658998 -0.503057;
-    0.780699 -0.658288;
-    0.767752 -0.830768;
-    0.677124 -0.896885;
-    0.604621 -0.825018;
-    0.643462 -0.784773];
-
-% Define each manually generated ROI
-hPoints(2).data = [0.806593 -0.247212;
-    0.721143 -0.393819;
-    0.749627 -0.505931;
-    0.860970 -0.402443];
-
-% Define each manually generated ROI
-hPoints(3).data = [0.324968 -0.071858;
-    0.361219 -0.321953;
-    0.436311 -0.330577;
-    0.464794 -0.140850;
-    0.384524 -0.043111];
-
-% Define each manually generated ROI
-hPoints(4).data = [1.062942 -0.048860;
-    0.775520 -0.549051;
-    0.879096 -0.750277;
-    1.251967 -0.149473];
+hPoints(1).data = [-0.739293 -0.550831;
+    -0.604460 -0.466861;
+    -0.503907 -0.307916;
+    -0.636454 -0.388888];
 
 % Iteratively apply each ROI
 for ii = 1:length(hPoints)

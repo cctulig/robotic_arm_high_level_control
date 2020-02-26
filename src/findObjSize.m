@@ -6,13 +6,12 @@ img = undistortImage(img, cameraParams, 'OutputView', 'full');
 
 F_blur = [1/9 1/9 1/9; 1/9 1/9 1/9; 1/9 1/9 1/9];
 
-
+img = imfilter(img, F_blur);
 [BW,] = createSizeMask(img);
-BW = imfilter(BW, F_blur);
-BW = medfilt2(BW);
-se = strel('line',10,10);
-BW = imdilate(BW, se);
-BW = imclose(BW, se);
+%BW = medfilt2(BW);
+se = strel('disk',5,6);
+%BW = imdilate(BW, se);
+BW = imfill(BW, 'holes');
 BW = imerode(BW, se);
 
 s = regionprops(BW, 'centroid', 'FilledArea')
@@ -33,7 +32,7 @@ for i = 1:max
                  disp('y');
                 if  s(j).FilledArea > 100
                      disp('hi');
-                    sizes(i) = s(j).FilledArea;
+                     sizes(i) = s(j).FilledArea;
                 end
             end
         end
