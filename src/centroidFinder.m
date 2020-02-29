@@ -22,7 +22,7 @@ blue_cent = [blue_cent, blues];
 
 % GREEN
 [BWG,imgG] = createGreenMask(img);
-se = strel('disk',5,6);
+se = strel('disk',5,8);
 BWG = imfill(BWG, 'holes');
 BWG = imerode(BWG, se);
 

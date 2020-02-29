@@ -2,7 +2,7 @@ function [ dq ] = numericIKAlgo( qi, Pf )
 %numericIKAlgo Inverse Differential Kinematics Calculations
 
 % Gain factor
-G = eye(3,3).*[.1;.1;.1];
+G = eye(3,3).*[.25;.25;.25];
 
 % Jacobian/Inverse Position Jacobian
 J = jacob0(qi);

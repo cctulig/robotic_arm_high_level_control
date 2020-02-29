@@ -1,50 +1,160 @@
+clear
+cam = webcam();
+load('cameraParams.mat');
+colormap(gray(2))
 
-T_0CH = [1 0 0 (52.8+175); 0 1 0 101.6; 0 0 1 -30; 0 0 0 1];
-T_CACH =  [0.0266   -0.8675    0.4968  107.7135;
-    0.9995    0.0321    0.0025  101.8156;
-    -0.0181    0.4965    0.8679  290.9126;
-    0         0         0    1.0000;];
+vid = hex2dec('3742');
+pid = hex2dec('0007');
 
-T_0CA = T_0CH * inv(T_CACH);
+javaaddpath ../lib/SimplePacketComsJavaFat-0.6.4.jar;
+import edu.wpi.SimplePacketComs.*;
+import edu.wpi.SimplePacketComs.device.*;
+import edu.wpi.SimplePacketComs.phy.*;
+import java.util.*;
+import org.hid4java.*;
+import plot_ellipse.*;
+import numericIKAlgo.*;
+import tb_optparse.*;
+version -java
+myHIDSimplePacketComs=HIDfactory.get();
+myHIDSimplePacketComs.setPid(pid);
+myHIDSimplePacketComs.setVid(vid);
+myHIDSimplePacketComs.connect();
 
-pixels = [301, 288; 427, 365; 438, 169; 169, 399;];
-undistortedPoints = undistortPoints(pixels, cameraParams);
+SERV_ID = 01;          % PidServer ID on Nucleo
+STATUS_ID = 03;        % StatusServer ID on Nucleo
+CALIBRATION_ID = 04;   % CallibrationServer ID on Nucleo
+GRIPPER_ID = 05;       % GripperServer ID on Nucleo
 
-worldPoints = pointsToWorld(cameraParams, T_CACH(1:3,1:3), T_CACH(1:3,4), pixels);
+% Create a PacketProcessor object to send data to the nucleo firmware
+pp = PacketProcessor(myHIDSimplePacketComs);
+packet = zeros(15, 1, 'single');
+empty = zeros(15, 1, 'single');
 
-worldPoints(:,1) = T_0CH(1,4) - worldPoints(:,1);
-worldPoints(:,2) = T_0CH(2,4) + worldPoints(:,2);
+try
+    packet(1) = 1;
+    % Send packet to the server and get the response
+    %pp.write sends a 15 float packet to the micro controller
+    pp.write(GRIPPER_ID, packet);
+    
+    pause(0.003); % Minimum amount of time required between write and read
+    
+    %pp.read reads a returned 15 float backet from the nucleo.
+    returnPacket = pp.read(GRIPPER_ID);
+    packet = zeros(15, 1, 'single');
+    angleStart = ikin(175, 0, 80);
+    
+    packet(1) = convertToEnc(angleStart(1)); %Writes setpoint to joint 1
+    packet(4) = convertToEnc(angleStart(2)); %Writes setpoint to joint 2
+    packet(7) = convertToEnc(angleStart(3)); %Writes setpoint to joint 3
+    
+    % Send packet to the server and get the response
+    %pp.write sends a 15 float packet to the micro controller
+    pp.write(SERV_ID, packet);
+    
+    pause(0.003); % Minimum amount of time required between write and read
+    
+    %pp.read reads a returned 15 float backet from the nucleo.
+    returnPacket = pp.read(SERV_ID);
+    
+    %pixels = [301, 288; 427, 365; 438, 169; 169, 399;];
+    %undistortedPoints = undistortPoints(pixels, cameraParams);
+    
+    pause(.5);
+    
+    %actualPoints = [175, 0; 175+2*25.4, 3*25.4; 175-4*25.4, 4*25.4; 175+3*25.4, -3*25.4];
+    
+    % imwrite(img,'test.png');
+    % load('test.png');
+    
+    img = snapshot(cam);
+    
+    [centroids, BW] = centroidFinder(img, cameraParams);
+    
+    [BW2,areas] = findObjSize(img, centroids, cameraParams);
+    
+    worldPoints = getWorldPoints(centroids, cameraParams);
+    
+    centroids
+    areas
+    worldPoints
+    
+    %Write and reading from the Status server to get encoder positions and motor velocities
+    empty = zeros(15, 1, 'single');
+    pp.write(STATUS_ID, empty);
+    
+    pause(0.003); % Minimum amount of time required between write and read
+    %
+    
+    %pp.read reads a returned 15 float backet from the nucleo.
+    statusPacket = pp.read(STATUS_ID);
+    
+    % Convert encoders to radians, then sends those angles to be simulated as a stick model
+    %angle = [(statusPacket(1)*2*pi/4096), (statusPacket(4)*2*pi/4096), (statusPacket(7)*2*pi/4096)];
+    
+    %position = fwkin3001(angle(1),angle(2),angle(3));
+    
+    startPos = [175, 0, 80];
+    completeDynamicNumericIKMotion(startPos, cam, cameraParams, pp);
+    gripper(0, pp);
+    
+%     for i = 1:size(centroids(:,1))
+%         startPos = [175, 0, 80];
+%         end1Pos = [worldPoints(i,1), worldPoints(i,2), startPos(3)];
+%         end2Pos = [worldPoints(i,1), worldPoints(i,2), -20];
+%         completeNumericIKMotion(startPos, end1Pos, pp);
+%         completeNumericIKMotion(end1Pos, end2Pos, pp);
+%         
+%         pause(.5);
+%         gripper(0, pp);
+%         pause(.5);
+%         
+%         [endX, endY] = determine_Placement(centroids(i,3), areas(1,i));
+%         
+%         startPos = end2Pos;
+%         end1Pos = [startPos(1), startPos(2), 80];
+%         end2Pos = [endX, endY, -10];
+%         completeNumericIKMotion(startPos, end1Pos, pp);
+%         completeNumericIKMotion(end1Pos, end2Pos, pp);
+%         
+%         pause(.5);
+%         gripper(1, pp);
+%         pause(.5);
+% 
+%         
+%         startPos = end2Pos;
+%         end1Pos = [175, 0, 80];
+%         completeNumericIKMotion(startPos, end1Pos, pp);
+%     end
+    
+catch exception
+    getReport(exception)
+    disp('Exited on error, clean shutdown');
+end
 
-actualPoints = [175, 0; 175+2*25.4, 3*25.4; 175-4*25.4, 4*25.4; 175+3*25.4, -3*25.4];
+% Record end positions of each trajectory
+% % posComp = [posComp; endPos startPos'];
+% % notReachedSetpoint = 1;
+% %
+% % % Get a new mouse input for next target trajectory
+% % mouseInput = ginput(1);
+% % endPos(1) = mouseInput(1);
+% % endPos(3) = mouseInput(2);
+% % angleEnd = ikin(xPos(2), yPos(2), zPos(2));
 
-img = snapshot(cam);
-% imwrite(img,'test.png');
-% load('test.png');
 
-[centroids, BW] = centroidFinder(img, cameraParams);
+% figure(1)
+% colormap(gray(2));
+% image(BW2)
+% hold on
+% plot(centroids(1,1),centroids(1,2),'.r')
+% plot(centroids(2,1),centroids(2,2),'.r')
+% plot(centroids(3,1),centroids(3,2),'.r')
+%
+% grid on
+% hold on
+% title('Black-White Image After Size Filter');
+% set(gca, 'fontsize', 16);
+% xlabel('X [mm]'), ylabel('Y [mm]');
+% hold off
 
-[BW2,areas] = findObjSize(img, centroids, cameraParams);
-
-
-centroids
-areas
-
-figure(1)
-colormap(gray(2));
-image(BW2)
-hold on
-plot(centroids(1,1),centroids(1,2),'.r')
-plot(centroids(2,1),centroids(2,2),'.r')
-plot(centroids(3,1),centroids(3,2),'.r')
-
-grid on
-hold on
-title('Black-White Image After Size Filter');
-set(gca, 'fontsize', 16);
-xlabel('X [mm]'), ylabel('Y [mm]');
-hold off
-
-%     0.0266    0.9995   -0.0181  128.4418
-%    -0.8674    0.0321    0.4964   47.3483
-%     0.4968    0.0025    0.8678 -336.2277
-%          0         0         0    1.0000

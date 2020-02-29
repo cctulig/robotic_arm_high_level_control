@@ -24,7 +24,7 @@ if((theta(1)> 1.54) || (theta(1)< -1.515) || (theta(2)> 1.725) || (theta(2)< -.1
     %error('Out of Joint Range');
 end
 
-if(z< -45 || z > 260 || x < -45 || x > 300 || y < -150 || y > 150)
+if(z< -45 || z > 260 || x < -60 || x > 300 || y < -230 || y > 230)
     error('Out of Bounds');
 end
 

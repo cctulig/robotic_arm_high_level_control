@@ -109,10 +109,10 @@ try
     %[-290, 300, -350, -290];
     
     % Start and End positions/angles for Inverse Differential Kinematics
-    startPos = [xPos(1), 0, zPos(1)];
-    endPos = [xPos(2), 0, zPos(2)];
-    angleStart = ikin(xPos(1), yPos(1), zPos(1));
-    angleEnd = ikin(xPos(2), yPos(2), zPos(2));
+    startPos = [175, 0, 80];
+    endPos = [154.8600, -66.0951, -10];
+    angleStart = ikin(startPos(1), startPos(2), startPos(3));
+    angleEnd = ikin(endPos(1), endPos(2), endPos(3));
     
     posComp = [0 0 0 0 0 0];
     
@@ -132,12 +132,12 @@ try
             
             % Send packet to the server and get the response
             %pp.write sends a 15 float packet to the micro controller
-            pp.write(SERV_ID, packet);
-            
-            pause(0.003); % Minimum amount of time required between write and read
-            
-            %pp.read reads a returned 15 float backet from the nucleo.
-            returnPacket = pp.read(SERV_ID);
+%             pp.write(SERV_ID, packet);
+%             
+%             pause(0.003); % Minimum amount of time required between write and read
+%             
+%             %pp.read reads a returned 15 float backet from the nucleo.
+%             returnPacket = pp.read(SERV_ID);
             
             pause(.1);
             
