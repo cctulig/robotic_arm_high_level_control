@@ -5,7 +5,7 @@
     <visual>
         <origin xyz="0 0 0" rpy="0 0 0"/>
         <geometry>
-           <mesh filename="package://CAD/Link0.stl"/>
+           <mesh filename="/ifs/home/jwternent/RBE3001_Matlab01/src/CAD/Link0.stl"/>
         </geometry>
         <material name="Orange"/>
     </visual>
@@ -39,7 +39,7 @@
 </link>
 
 
-  <joint name="joint1" type="fixed">
+  <joint name="joint1" type="continuous">
     <parent link="link0"/>
     <child link="link1"/>
     <origin xyz="0 0 .065" rpy="0 0 0" />

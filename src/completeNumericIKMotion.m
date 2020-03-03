@@ -1,4 +1,4 @@
-function completeNumericIKMotion( startPos, endPos, pp )
+function completeNumericIKMotion( startPos, endPos, pp, robot )
 %UNTITLED2 Summary of this function goes here
 %   Detailed explanation goes here
 SERV_ID = 01; 
@@ -14,6 +14,8 @@ while notReachedSetpoint
     dq = numericIKAlgo(angleStart, endPos);
     angleStart = angleStart + dq;
     startPos = fwkin3001(angleStart(1), angleStart(2), angleStart(3));
+    
+    updateRobotModel(angleStart, robot);
     
     packet(1) = convertToEnc(-angleStart(1)); %Writes setpoint to joint 1
     packet(4) = convertToEnc(angleStart(2)); %Writes setpoint to joint 2

@@ -32,6 +32,10 @@ packet = zeros(15, 1, 'single');
 empty = zeros(15, 1, 'single');
 
 try
+    robot = importrobot('my_robot.urdf');
+    figure(2);
+    show(robot);
+    
     packet(1) = 1;
     % Send packet to the server and get the response
     %pp.write sends a 15 float packet to the micro controller
@@ -75,9 +79,9 @@ try
     
     worldPoints = getWorldPoints(centroids, cameraParams);
     
-    centroids
-    areas
-    worldPoints
+   centroids
+   areas
+   worldPoints
     
     %Write and reading from the Status server to get encoder positions and motor velocities
     empty = zeros(15, 1, 'single');
@@ -89,43 +93,46 @@ try
     %pp.read reads a returned 15 float backet from the nucleo.
     statusPacket = pp.read(STATUS_ID);
     
+    
+%     drumFinder(img, cameraParams, pp);
+    
     % Convert encoders to radians, then sends those angles to be simulated as a stick model
     %angle = [(statusPacket(1)*2*pi/4096), (statusPacket(4)*2*pi/4096), (statusPacket(7)*2*pi/4096)];
     
     %position = fwkin3001(angle(1),angle(2),angle(3));
     
-    startPos = [175, 0, 80];
-    completeDynamicNumericIKMotion(startPos, cam, cameraParams, pp);
-    gripper(0, pp);
+%     startPos = [175, 0, 80];
+%     completeDynamicNumericIKMotion(startPos, cam, cameraParams, pp);
+%     gripper(0, pp);
     
-%     for i = 1:size(centroids(:,1))
-%         startPos = [175, 0, 80];
-%         end1Pos = [worldPoints(i,1), worldPoints(i,2), startPos(3)];
-%         end2Pos = [worldPoints(i,1), worldPoints(i,2), -20];
-%         completeNumericIKMotion(startPos, end1Pos, pp);
-%         completeNumericIKMotion(end1Pos, end2Pos, pp);
-%         
-%         pause(.5);
-%         gripper(0, pp);
-%         pause(.5);
-%         
-%         [endX, endY] = determine_Placement(centroids(i,3), areas(1,i));
-%         
-%         startPos = end2Pos;
-%         end1Pos = [startPos(1), startPos(2), 80];
-%         end2Pos = [endX, endY, -10];
-%         completeNumericIKMotion(startPos, end1Pos, pp);
-%         completeNumericIKMotion(end1Pos, end2Pos, pp);
-%         
-%         pause(.5);
-%         gripper(1, pp);
-%         pause(.5);
-% 
-%         
-%         startPos = end2Pos;
-%         end1Pos = [175, 0, 80];
-%         completeNumericIKMotion(startPos, end1Pos, pp);
-%     end
+    for i = 1:size(centroids(:,1))
+        startPos = [175, 0, 80];
+        end1Pos = [worldPoints(i,1), worldPoints(i,2), startPos(3)];
+        end2Pos = [worldPoints(i,1), worldPoints(i,2), -20];
+        completeNumericIKMotion(startPos, end1Pos, pp,robot);
+        completeNumericIKMotion(end1Pos, end2Pos, pp,robot);
+        
+        pause(.5);
+        gripper(0, pp);
+        pause(.5);
+        
+        [endX, endY] = determine_Placement(centroids(i,3), areas(1,i));
+        
+        startPos = end2Pos;
+        end1Pos = [startPos(1), startPos(2), 80];
+        end2Pos = [endX, endY, -10];
+        completeNumericIKMotion(startPos, end1Pos, pp,robot);
+        completeNumericIKMotion(end1Pos, end2Pos, pp,robot);
+        
+        pause(.5);
+        gripper(1, pp);
+        pause(.5);
+
+        
+        startPos = end2Pos;
+        end1Pos = [175, 0, 80];
+        completeNumericIKMotion(startPos, end1Pos, pp,robot);
+    end
     
 catch exception
     getReport(exception)
